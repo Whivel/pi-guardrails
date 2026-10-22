@@ -12,17 +12,19 @@ export type PermissionGateMeta = {
 export type PermissionGateRuleOptions = {
   patterns: DangerousPattern[];
   useBuiltinMatchers: boolean;
+  caseInsensitive?: boolean;
 };
 
 export function createPermissionGateRule({
   patterns,
   useBuiltinMatchers,
+  caseInsensitive = false,
 }: PermissionGateRuleOptions): Rule<PermissionGateMeta> {
-  const compiledPatterns = compileCommandPatterns(patterns);
+  const compiledPatterns = compileCommandPatterns(patterns, caseInsensitive);
 
   return {
     key: "permission-gate.dangerous-command",
-    check(action: Action) {
+    async check(action: Action) {
       if (action.kind !== "command") return { kind: "pass" };
 
       const match = checkDangerousCommand({
@@ -30,6 +32,7 @@ export function createPermissionGateRule({
         patterns: compiledPatterns,
         useBuiltinMatchers,
         fallbackPatterns: patterns,
+        caseInsensitive,
       });
       if (!match) return { kind: "pass" };
 
@@ -49,8 +52,9 @@ export function createPermissionGateRule({
 export function matchCommandPattern(
   command: string,
   patterns: PatternConfig[],
+  caseInsensitive = false,
 ): PatternConfig | null {
-  const compiled = compileCommandPatterns(patterns);
+  const compiled = compileCommandPatterns(patterns, caseInsensitive);
   for (let i = 0; i < compiled.length; i++) {
     if (compiled[i].test(command)) return patterns[i];
   }
@@ -60,8 +64,9 @@ export function matchCommandPattern(
 export function matchesAnyCommandPattern(
   command: string,
   patterns: PatternConfig[],
+  caseInsensitive = false,
 ): boolean {
-  return matchCommandPattern(command, patterns) !== null;
+  return matchCommandPattern(command, patterns, caseInsensitive) !== null;
 }
 
 export function formatAutoDenyReason(pattern: PatternConfig): string {

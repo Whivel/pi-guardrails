@@ -37,3 +37,4 @@ result-*
 .husky/_
 
 .worktrees
+.pi/tasks/

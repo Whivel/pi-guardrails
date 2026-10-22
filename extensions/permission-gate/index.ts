@@ -1,8 +1,4 @@
-import {
-  type ExtensionAPI,
-  isToolCallEventType,
-} from "@earendil-works/pi-coding-agent";
-import { checkAction } from "../../src/core";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { configLoader } from "../../src/shared/config";
 import {
   createFeatureRegisterPayload,
@@ -17,12 +13,10 @@ import {
   setupLegacyPromptEventAlias,
 } from "../../src/shared/events";
 import { isCommandAllowed, saveCommandSessionGrant } from "./grants";
+import { getPermissionGateToolInput } from "./command-input";
+import { checkCommandSafety } from "./command-safety";
 import { createPermissionGateConfirmComponent } from "./prompt";
-import {
-  createPermissionGateRule,
-  formatAutoDenyReason,
-  matchCommandPattern,
-} from "./rules";
+import { formatAutoDenyReason, matchCommandPattern } from "./rules";
 
 export default async function permissionGate(pi: ExtensionAPI) {
   await configLoader.load();
@@ -38,15 +32,20 @@ export default async function permissionGate(pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {
     const config = configLoader.getConfig();
     if (!config.enabled || !config.features.permissionGate) return;
-    if (!isToolCallEventType("bash", event)) return;
+    const toolInput = getPermissionGateToolInput(event);
+    if (!toolInput) return;
+    if (toolInput.kind === "invalid") {
+      return { block: true, reason: toolInput.reason };
+    }
 
-    const command = event.input.command;
-    const action = { kind: "command" as const, command, origin: "bash" };
-    if (isCommandAllowed(command)) return;
+    const { toolName, command, input } = toolInput;
+    const action = { kind: "command" as const, command, origin: toolName };
+    if (isCommandAllowed(command, toolName)) return;
 
     const autoDenyMatch = matchCommandPattern(
       command,
       config.permissionGate.autoDenyPatterns,
+      config.permissionGate.caseInsensitive,
     );
 
     if (autoDenyMatch) {
@@ -57,24 +56,23 @@ export default async function permissionGate(pi: ExtensionAPI) {
         action,
         reason,
         block: { source: "permission", metadata: autoDenyMatch },
-        context: { toolName: "bash", input: event.input },
+        context: { toolName, input },
       });
 
       return { block: true, reason };
     }
 
-    const safety = await checkAction(action, [
-      createPermissionGateRule({
-        patterns: config.permissionGate.patterns,
-        useBuiltinMatchers: config.permissionGate.useBuiltinMatchers,
-      }),
-    ]);
+    const safety = await checkCommandSafety(
+      toolInput,
+      action,
+      config.permissionGate,
+    );
     if (safety.kind === "safe") return;
 
     emitRiskDetected(pi, {
       feature: "permissionGate",
       risk: safety,
-      context: { toolName: "bash", input: event.input },
+      context: { toolName, input },
     });
 
     if (!config.permissionGate.requireConfirmation) {
@@ -89,7 +87,7 @@ export default async function permissionGate(pi: ExtensionAPI) {
         action: safety.action,
         reason,
         block: { source: "nonInteractive", metadata: safety.metadata },
-        context: { toolName: "bash", input: event.input },
+        context: { toolName, input },
       });
       return { block: true, reason };
     }
@@ -103,7 +101,7 @@ export default async function permissionGate(pi: ExtensionAPI) {
         kind: "permission",
         metadata: safety.metadata,
       },
-      context: { toolName: "bash", input: event.input },
+      context: { toolName, input },
     });
     pi.events.emit(GUARDRAILS_PROMPT_OPENED_EVENT, promptOpened);
 
@@ -135,7 +133,7 @@ export default async function permissionGate(pi: ExtensionAPI) {
 
     if (result === "allow") return;
     if (result === "allow-session") {
-      await saveCommandSessionGrant(command);
+      await saveCommandSessionGrant(command, toolName);
       return;
     }
 
@@ -146,7 +144,7 @@ export default async function permissionGate(pi: ExtensionAPI) {
         action: safety.action,
         reason,
         block: { source: "user-stop", metadata: safety.metadata },
-        context: { toolName: "bash", input: event.input },
+        context: { toolName, input },
       });
       ctx.abort();
       return { block: true, reason };
@@ -158,7 +156,7 @@ export default async function permissionGate(pi: ExtensionAPI) {
       action: safety.action,
       reason,
       block: { source: "user", metadata: safety.metadata },
-      context: { toolName: "bash", input: event.input },
+      context: { toolName, input },
     });
     return { block: true, reason };
   });

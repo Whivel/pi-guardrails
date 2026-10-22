@@ -148,6 +148,8 @@ export interface GuardrailsConfig {
     patterns?: DangerousPattern[];
     /** If set, replaces the default dangerous command patterns entirely. */
     customPatterns?: DangerousPattern[];
+    /** Match configured command patterns without regard to letter case. Default false. */
+    caseInsensitive?: boolean;
     /** When true, prompt before running dangerous commands. When false, only warn. */
     requireConfirmation?: boolean;
     /** Command patterns that bypass dangerous command prompts. */
@@ -176,6 +178,7 @@ export interface ResolvedConfig {
     /** When true, use hardcoded structural matchers for built-in patterns.
      *  Set to false when customPatterns replaces the defaults. */
     useBuiltinMatchers: boolean;
+    caseInsensitive: boolean;
     requireConfirmation: boolean;
     allowedPatterns: PatternConfig[];
     autoDenyPatterns: PatternConfig[];

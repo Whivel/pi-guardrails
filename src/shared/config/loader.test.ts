@@ -267,6 +267,7 @@ describe("permission gate pattern merging across scopes", () => {
     await configLoader.load();
     const config = configLoader.getConfig();
 
+    expect(config.permissionGate.caseInsensitive).toBe(false);
     const patterns = config.permissionGate.autoDenyPatterns.map(
       (p) => p.pattern,
     );
@@ -293,6 +294,7 @@ describe("permission gate pattern merging across scopes", () => {
         permissionGate: {
           patterns: [{ pattern: "global-only" }, { pattern: "local-only" }],
           allowedPatterns: [{ pattern: "allowed-b" }],
+          caseInsensitive: true,
         },
       }),
     });
@@ -307,6 +309,7 @@ describe("permission gate pattern merging across scopes", () => {
     expect(patterns).toContain("global-only");
     expect(patterns).toContain("local-only");
     expect(patterns).toContain("rm -rf");
+    expect(config.permissionGate.caseInsensitive).toBe(true);
     expect(patterns.filter((p) => p === "global-only")).toHaveLength(1);
     expect(
       config.permissionGate.allowedPatterns.map((p) => p.pattern).sort(),

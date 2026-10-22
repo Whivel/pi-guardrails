@@ -571,6 +571,19 @@ export function registerGuardrailsSettings(
           label: "Permission Gate",
           items: [
             {
+              id: "permissionGate.caseInsensitive",
+              label: "Case-insensitive patterns",
+              description:
+                "Match command patterns without case sensitivity (does not affect policy patterns)",
+              currentValue:
+                scopedConfig.permissionGate?.caseInsensitive === undefined
+                  ? `inherited: ${resolved.permissionGate.caseInsensitive ? "on" : "off"}`
+                  : scopedConfig.permissionGate.caseInsensitive
+                    ? "on"
+                    : "off",
+              values: ["on", "off"],
+            },
+            {
               id: "permissionGate.requireConfirmation",
               label: "Require confirmation",
               description:
@@ -630,6 +643,14 @@ export function registerGuardrailsSettings(
         updated.features = {
           ...updated.features,
           [featureKey]: newValue === "enabled",
+        };
+        return updated;
+      }
+
+      if (id === "permissionGate.caseInsensitive") {
+        updated.permissionGate = {
+          ...updated.permissionGate,
+          caseInsensitive: newValue === "on",
         };
         return updated;
       }

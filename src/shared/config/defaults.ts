@@ -113,6 +113,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
       },
     ],
     useBuiltinMatchers: true,
+    caseInsensitive: false,
     requireConfirmation: true,
     allowedPatterns: [],
     autoDenyPatterns: [],

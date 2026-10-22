@@ -1,26 +1,30 @@
 import { configLoader } from "../../src/shared/config";
 import { compileCommandPatterns } from "../../src/shared/matching";
 
-export function isCommandAllowed(command: string): boolean {
+export type CommandDialect = "bash" | "powershell";
+
+// Session grants are process-local and dialect-scoped; persistent config patterns remain shared.
+const sessionCommandGrants = new Set<string>();
+
+export function isCommandAllowed(
+  command: string,
+  dialect: CommandDialect = "bash",
+): boolean {
   const config = configLoader.getConfig();
-  return compileCommandPatterns(config.permissionGate.allowedPatterns).some(
-    (pattern) => pattern.test(command),
-  );
+  if (sessionCommandGrants.has(sessionGrantKey(dialect, command))) return true;
+  return compileCommandPatterns(
+    config.permissionGate.allowedPatterns,
+    config.permissionGate.caseInsensitive,
+  ).some((pattern) => pattern.test(command));
 }
 
-export async function saveCommandSessionGrant(command: string): Promise<void> {
-  const resolved = configLoader.getConfig();
-  await configLoader.save("memory", {
-    permissionGate: {
-      allowedPatterns: [
-        ...resolved.permissionGate.allowedPatterns,
-        { pattern: exactCommandPattern(command), regex: true },
-      ],
-    },
-  });
+export async function saveCommandSessionGrant(
+  command: string,
+  dialect: CommandDialect = "bash",
+): Promise<void> {
+  sessionCommandGrants.add(sessionGrantKey(dialect, command));
 }
 
-function exactCommandPattern(command: string): string {
-  const escaped = command.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return `^(?:${escaped})(?![\\s\\S])`;
+function sessionGrantKey(dialect: CommandDialect, command: string): string {
+  return JSON.stringify([dialect, command]);
 }

@@ -138,6 +138,10 @@
               },
               "description": "If set, replaces the default dangerous command patterns entirely."
             },
+            "caseInsensitive": {
+              "type": "boolean",
+              "description": "Match configured command patterns without regard to letter case. Default false."
+            },
             "requireConfirmation": {
               "type": "boolean",
               "description": "When true, prompt before running dangerous commands. When false, only warn."

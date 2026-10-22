@@ -31,6 +31,7 @@
   "files": [
     "src",
     "extensions",
+    "bin",
     "README.md",
     "schema.json",
     "!src/**/*.test.ts",
@@ -68,7 +69,7 @@
     "lint": "biome check",
     "format": "biome check --write",
     "check:lockfile": "pnpm install --frozen-lockfile --ignore-scripts",
-    "prepare": "[ -d .git ] && husky || true",
+    "prepare": "if exist .git (husky || exit /b 0) else exit /b 0",
     "changeset": "changeset",
     "version": "changeset version",
     "release": "pnpm changeset publish"

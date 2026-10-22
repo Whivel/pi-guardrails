@@ -32,6 +32,7 @@ export interface DangerousCommandCheckOptions {
   patterns: readonly CompiledCommandPattern[];
   useBuiltinMatchers: boolean;
   fallbackPatterns: readonly CommandPattern[];
+  caseInsensitive?: boolean;
 }
 
 /**
@@ -410,6 +411,7 @@ export function checkDangerousCommand({
   patterns,
   useBuiltinMatchers,
   fallbackPatterns,
+  caseInsensitive = false,
 }: DangerousCommandCheckOptions): DangerousCommandMatch | undefined {
   let parsedSuccessfully = false;
 
@@ -437,7 +439,11 @@ export function checkDangerousCommand({
       if (match) return match;
     } catch {
       for (const pattern of fallbackPatterns) {
-        if (command.includes(pattern.pattern)) {
+        const matches = caseInsensitive
+          ? !pattern.regex &&
+            command.toLowerCase().includes(pattern.pattern.toLowerCase())
+          : command.includes(pattern.pattern);
+        if (matches) {
           return {
             description: pattern.description ?? pattern.pattern,
             pattern: pattern.pattern,
@@ -451,6 +457,7 @@ export function checkDangerousCommand({
     const source = compiled.source;
     if (
       useBuiltinMatchers &&
+      !caseInsensitive &&
       parsedSuccessfully &&
       !source.regex &&
       BUILTIN_KEYWORD_PATTERNS.has(source.pattern)

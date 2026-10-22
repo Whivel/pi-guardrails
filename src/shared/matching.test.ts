@@ -50,10 +50,11 @@ describe("compileFilePattern", () => {
 });
 
 describe("compileCommandPattern", () => {
-  it("uses substring matching by default", () => {
+  it("uses case-sensitive substring matching by default", () => {
     const pattern = compileCommandPattern({ pattern: "deploy production" });
 
     expect(pattern.test("please deploy production now")).toBe(true);
+    expect(pattern.test("DEPLOY PRODUCTION")).toBe(false);
     expect(pattern.test("deploy staging")).toBe(false);
   });
 
@@ -64,6 +65,24 @@ describe("compileCommandPattern", () => {
     });
 
     expect(pattern.test("terraform apply -auto-approve")).toBe(true);
+    expect(pattern.test("TERRAFORM APPLY")).toBe(false);
+    expect(pattern.test("terraform plan")).toBe(false);
+  });
+
+  it("matches command substrings case-insensitively when enabled", () => {
+    const pattern = compileCommandPattern({ pattern: "sudo rm" }, true);
+
+    expect(pattern.test("SUDO RM -rf /tmp/test")).toBe(true);
+    expect(pattern.test("sudo ls")).toBe(false);
+  });
+
+  it("matches command regexes case-insensitively when enabled", () => {
+    const pattern = compileCommandPattern(
+      { pattern: "^terraform\\s+apply", regex: true },
+      true,
+    );
+
+    expect(pattern.test("TERRAFORM APPLY -auto-approve")).toBe(true);
     expect(pattern.test("terraform plan")).toBe(false);
   });
 

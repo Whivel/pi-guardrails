@@ -74,10 +74,13 @@ export function compileFilePattern(config: PatternConfig): CompiledPattern {
  * Default: substring match against raw command string.
  * regex: true -> full regex against raw command string.
  */
-export function compileCommandPattern(config: PatternConfig): CompiledPattern {
+export function compileCommandPattern(
+  config: PatternConfig,
+  caseInsensitive = false,
+): CompiledPattern {
   if (config.regex) {
     try {
-      const re = new RegExp(config.pattern);
+      const re = new RegExp(config.pattern, caseInsensitive ? "i" : "");
       return { test: (input) => re.test(input), source: config };
     } catch {
       // TODO: surface invalid regex to the user via ctx.ui.notify once pattern
@@ -89,7 +92,9 @@ export function compileCommandPattern(config: PatternConfig): CompiledPattern {
   }
 
   return {
-    test: (input) => input.includes(config.pattern),
+    test: caseInsensitive
+      ? (input) => input.toLowerCase().includes(config.pattern.toLowerCase())
+      : (input) => input.includes(config.pattern),
     source: config,
   };
 }
@@ -108,6 +113,9 @@ export function compileFilePatterns(
  */
 export function compileCommandPatterns(
   configs: PatternConfig[],
+  caseInsensitive = false,
 ): CompiledPattern[] {
-  return configs.map(compileCommandPattern);
+  return configs.map((config) =>
+    compileCommandPattern(config, caseInsensitive),
+  );
 }

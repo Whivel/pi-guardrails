@@ -77,9 +77,21 @@ Granted paths are stored in `pathAccess.allowedPaths` as explicit `{ kind, path 
 
 ### permission-gate
 
-The `permission-gate` extension detects dangerous bash commands before they run.
+The `permission-gate` extension detects dangerous bash and PowerShell commands before they run.
 
-It catches built-in risky patterns like recursive deletes, privileged commands, disk formatting, broad permission changes, and configured custom patterns. You can allow once, allow for the session, deny, decline and stop (which also aborts the current turn), or configure auto-deny rules.
+Bash uses built-in risky patterns like recursive deletes, privileged commands, disk formatting, broad permission changes, and configured custom patterns. PowerShell uses its bundled AST parser for structural checks of recursive force deletes and disk formatting/removal, plus configured text patterns. Structural PowerShell checks fail closed to a confirmation when parsing is unavailable or incomplete. Parser supports bundled Windows x64 and Linux x64 artifacts; other platforms report an explicit unsupported-platform reason. Commands are parsed, never executed, by the helper.
+
+You can allow once, allow for the session, deny, decline and stop (which also aborts the current turn), or configure auto-deny rules. Session grants are exact and scoped separately to Bash or PowerShell; user-configured allow patterns remain shared across both.
+
+Set `permissionGate.caseInsensitive` to `true` in `guardrails.json` to make configured command patterns match without regard to case. This applies to literal substring patterns and regex patterns, including allowed and auto-deny patterns. It does not change file-policy matching. Omit the setting (default) to keep case-sensitive command matching.
+
+```json
+{
+  "permissionGate": {
+    "caseInsensitive": true
+  }
+}
+```
 
 [![Guardrails permission gate walkthrough](https://assets.aliou.me/github/aliou/pi-guardrails/v0.12.0/permission-gate.gif)](https://assets.aliou.me/github/aliou/pi-guardrails/v0.12.0/permission-gate.mp4)
 

@@ -78,6 +78,13 @@ const DANGEROUS_EVENT = {
   input: { command: "dangerous-cmd" },
 } satisfies BashToolCallEvent;
 
+const POWERSHELL_DANGEROUS_EVENT = {
+  type: "tool_call",
+  toolCallId: "powershell-dangerous-call",
+  toolName: "powershell",
+  input: { command: "dangerous-cmd", timeout: 25 },
+} as unknown as ToolCallEvent;
+
 describe("permissionGate extension hook", () => {
   let pi: DeepMocked<ExtensionAPI>;
   let toolCallHandler: ToolCallHandler | undefined;
@@ -116,6 +123,56 @@ describe("permissionGate extension hook", () => {
       createCtx(),
     );
     expect(result).toBeUndefined();
+  });
+
+  it("routes PowerShell command text separately and keeps received input in prompt events", async () => {
+    assert(toolCallHandler, "tool_call handler should be registered");
+    const result = await toolCallHandler(
+      POWERSHELL_DANGEROUS_EVENT,
+      createCtx(),
+    );
+
+    expect(result).toEqual({
+      block: true,
+      reason: "User denied dangerous command",
+    });
+    expect(pi.events.emit).toHaveBeenCalledWith(
+      GUARDRAILS_ACTION_BLOCKED_EVENT,
+      expect.objectContaining({
+        action: expect.objectContaining({ origin: "powershell" }),
+        context: {
+          toolName: "powershell",
+          input: { command: "dangerous-cmd", timeout: 25 },
+        },
+      }),
+    );
+    expect(pi.events.emit).toHaveBeenCalledWith(
+      GUARDRAILS_PROMPT_OPENED_EVENT,
+      expect.objectContaining({
+        context: {
+          toolName: "powershell",
+          input: { command: "dangerous-cmd", timeout: 25 },
+        },
+      }),
+    );
+  });
+
+  it("blocks PowerShell events without a string command", async () => {
+    assert(toolCallHandler, "tool_call handler should be registered");
+    const result = await toolCallHandler(
+      {
+        type: "tool_call",
+        toolCallId: "invalid-powershell-call",
+        toolName: "powershell",
+        input: { command: 42, timeout: 25 },
+      } as unknown as ToolCallEvent,
+      createCtx(),
+    );
+
+    expect(result).toEqual({
+      block: true,
+      reason: "Invalid PowerShell tool input: input.command must be a string.",
+    });
   });
 
   it("returns undefined for non-bash tools", async () => {
