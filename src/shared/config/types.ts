@@ -142,6 +142,19 @@ export interface GuardrailsConfig {
     onlyBlockIfExists?: boolean;
     blockMessage?: string;
   };
+  /** Tool-name pattern confirmation settings. */
+  toolsGate?: {
+    /** Tool names matching these patterns require confirmation. */
+    patterns?: DangerousPattern[];
+    /** Match configured tool-name patterns without regard to letter case. Default false. */
+    caseInsensitive?: boolean;
+    /** When true, prompt before running matching tools. When false, only warn. */
+    requireConfirmation?: boolean;
+    /** Tool-name patterns that bypass confirmation entirely. */
+    allowedPatterns?: PatternConfig[];
+    /** Tool-name patterns that are always blocked without prompting. */
+    autoDenyPatterns?: PatternConfig[];
+  };
   /** Dangerous bash command detection and confirmation settings. */
   permissionGate?: {
     /** Additional dangerous command patterns. */
@@ -172,6 +185,13 @@ export interface ResolvedConfig {
     applyTo: PathAccessApplyTo;
     allowedPaths: AllowedPath[];
     alwaysScope: PathAccessAlwaysScope;
+  };
+  toolsGate: {
+    patterns: DangerousPattern[];
+    caseInsensitive: boolean;
+    requireConfirmation: boolean;
+    allowedPatterns: PatternConfig[];
+    autoDenyPatterns: PatternConfig[];
   };
   permissionGate: {
     patterns: DangerousPattern[];

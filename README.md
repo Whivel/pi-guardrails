@@ -95,6 +95,22 @@ Set `permissionGate.caseInsensitive` to `true` in `guardrails.json` to make conf
 
 [![Guardrails permission gate walkthrough](https://assets.aliou.me/github/aliou/pi-guardrails/v0.12.0/permission-gate.gif)](https://assets.aliou.me/github/aliou/pi-guardrails/v0.12.0/permission-gate.mp4)
 
+### tools-gate
+
+The `toolsGate` configuration checks each Pi tool name before command tools are routed to Bash or PowerShell analysis. Matching `patterns` prompt before the tool runs. Patterns use substring matching by default or regex with `regex: true`; `caseInsensitive` controls case matching. `allowedPatterns` bypass prompts, and `autoDenyPatterns` block without prompting. Configure through `/guardrails:settings` or directly:
+
+```json
+{
+  "toolsGate": {
+    "patterns": [{ "pattern": "browser", "description": "browser access" }],
+    "caseInsensitive": false,
+    "requireConfirmation": true
+  }
+}
+```
+
+The feature is enabled by default with no matching patterns. Toggle it with `features.toolsGate`.
+
 ### Shell substitution checks
 
 Built-in dangerous-command checks, file policies, and path-access extraction inspect commands inside command substitutions (`$(...)` and backticks) and process substitutions (`<(...)` and `>(...)`), including nested substitutions and expanded redirect targets. For example, `echo "$(cat .env)"` exposes the inner file access, while `echo "$(echo .env)"` still treats `.env` as text.

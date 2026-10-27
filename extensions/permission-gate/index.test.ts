@@ -13,6 +13,7 @@ import {
   type PartialFuncReturn,
 } from "@golevelup/ts-vitest";
 import { assert, beforeEach, describe, expect, it, vi } from "vitest";
+import { configLoader } from "../../src/shared/config";
 import {
   GUARDRAILS_ACTION_BLOCKED_EVENT,
   GUARDRAILS_FEATURE_REGISTER_EVENT,
@@ -28,7 +29,19 @@ vi.mock("../../src/shared/config", () => {
   function makeConfig(overrides: Record<string, unknown> = {}) {
     return {
       enabled: true,
-      features: { permissionGate: true, policies: true, pathAccess: true },
+      features: {
+        permissionGate: true,
+        toolsGate: true,
+        policies: true,
+        pathAccess: true,
+      },
+      toolsGate: {
+        patterns: [],
+        caseInsensitive: false,
+        requireConfirmation: true,
+        allowedPatterns: [],
+        autoDenyPatterns: [],
+      },
       permissionGate: {
         patterns: [{ pattern: "dangerous-cmd", description: "test danger" }],
         useBuiltinMatchers: false,
@@ -108,6 +121,39 @@ describe("permissionGate extension hook", () => {
         feature: { id: "permissionGate" },
       }),
     );
+    expect(pi.events.emit).toHaveBeenCalledWith(
+      GUARDRAILS_FEATURE_REGISTER_EVENT,
+      expect.objectContaining({
+        feature: { id: "toolsGate" },
+      }),
+    );
+  });
+
+  it("checks tool names before identifying PowerShell input", async () => {
+    assert(toolCallHandler, "tool_call handler should be registered");
+    vi.mocked(configLoader.getConfig).mockReturnValueOnce({
+      enabled: true,
+      features: { toolsGate: true, permissionGate: false },
+      toolsGate: {
+        patterns: [{ pattern: "powershell", description: "restricted shell" }],
+        caseInsensitive: false,
+        requireConfirmation: true,
+        allowedPatterns: [],
+        autoDenyPatterns: [],
+      },
+    } as unknown as ReturnType<typeof configLoader.getConfig>);
+
+    const result = await toolCallHandler(
+      {
+        type: "tool_call",
+        toolCallId: "restricted-tool-call",
+        toolName: "powershell",
+        input: { command: 42 },
+      } as unknown as ToolCallEvent,
+      createCtx(),
+    );
+
+    expect(result).toEqual({ block: true, reason: "User denied tool call" });
   });
 
   it("returns undefined for safe commands", async () => {

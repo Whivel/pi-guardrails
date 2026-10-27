@@ -49,6 +49,10 @@ const FEATURE_UI: Record<
     description:
       "Prompt for confirmation on dangerous commands (rm -rf, sudo, etc.)",
   },
+  toolsGate: {
+    label: "Tools gate",
+    description: "Prompt before running tools with matching names",
+  },
   pathAccess: {
     label: "Path access",
     description: "Restrict tool access to the current working directory",
@@ -632,6 +636,69 @@ export function registerGuardrailsSettings(
             },
           ],
         },
+        {
+          label: "Tools Gate",
+          items: [
+            {
+              id: "toolsGate.caseInsensitive",
+              label: "Case-insensitive patterns",
+              description: "Match tool-name patterns without case sensitivity",
+              currentValue:
+                scopedConfig.toolsGate?.caseInsensitive === undefined
+                  ? `inherited: ${resolved.toolsGate.caseInsensitive ? "on" : "off"}`
+                  : scopedConfig.toolsGate.caseInsensitive
+                    ? "on"
+                    : "off",
+              values: ["on", "off"],
+            },
+            {
+              id: "toolsGate.requireConfirmation",
+              label: "Require confirmation",
+              description:
+                "Show confirmation dialog for matching tool names (if off, just warns)",
+              currentValue:
+                scopedConfig.toolsGate?.requireConfirmation === undefined
+                  ? `inherited: ${resolved.toolsGate.requireConfirmation ? "on" : "off"}`
+                  : scopedConfig.toolsGate.requireConfirmation
+                    ? "on"
+                    : "off",
+              values: ["on", "off"],
+            },
+            {
+              id: "toolsGate.patterns",
+              label: "Tool-name patterns",
+              description: "Patterns that trigger tool-call confirmation",
+              currentValue: count("toolsGate.patterns"),
+              submenu: patternSubmenu(
+                "toolsGate.patterns",
+                "Tool-name Patterns",
+                "command",
+              ),
+            },
+            {
+              id: "toolsGate.allowedPatterns",
+              label: "Allowed tool names",
+              description: "Patterns that bypass the tools gate",
+              currentValue: count("toolsGate.allowedPatterns"),
+              submenu: patternConfigSubmenu(
+                "toolsGate.allowedPatterns",
+                "Allowed Tool Names",
+                "command",
+              ),
+            },
+            {
+              id: "toolsGate.autoDenyPatterns",
+              label: "Auto-deny tool names",
+              description: "Patterns that block tool calls without prompting",
+              currentValue: count("toolsGate.autoDenyPatterns"),
+              submenu: patternConfigSubmenu(
+                "toolsGate.autoDenyPatterns",
+                "Auto-Deny Tool Names",
+                "command",
+              ),
+            },
+          ],
+        },
       ];
     },
 
@@ -643,6 +710,22 @@ export function registerGuardrailsSettings(
         updated.features = {
           ...updated.features,
           [featureKey]: newValue === "enabled",
+        };
+        return updated;
+      }
+
+      if (id === "toolsGate.caseInsensitive") {
+        updated.toolsGate = {
+          ...updated.toolsGate,
+          caseInsensitive: newValue === "on",
+        };
+        return updated;
+      }
+
+      if (id === "toolsGate.requireConfirmation") {
+        updated.toolsGate = {
+          ...updated.toolsGate,
+          requireConfirmation: newValue === "on",
         };
         return updated;
       }

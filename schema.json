@@ -61,6 +61,9 @@
             "permissionGate": {
               "type": "boolean"
             },
+            "toolsGate": {
+              "type": "boolean"
+            },
             "pathAccess": {
               "type": "boolean"
             }
@@ -120,6 +123,42 @@
             }
           },
           "additionalProperties": false
+        },
+        "toolsGate": {
+          "type": "object",
+          "properties": {
+            "patterns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/DangerousPattern"
+              },
+              "description": "Tool names matching these patterns require confirmation."
+            },
+            "caseInsensitive": {
+              "type": "boolean",
+              "description": "Match configured tool-name patterns without regard to letter case. Default false."
+            },
+            "requireConfirmation": {
+              "type": "boolean",
+              "description": "When true, prompt before running matching tools. When false, only warn."
+            },
+            "allowedPatterns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/PatternConfig"
+              },
+              "description": "Tool-name patterns that bypass confirmation entirely."
+            },
+            "autoDenyPatterns": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/PatternConfig"
+              },
+              "description": "Tool-name patterns that are always blocked without prompting."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Tool-name pattern confirmation settings."
         },
         "permissionGate": {
           "type": "object",

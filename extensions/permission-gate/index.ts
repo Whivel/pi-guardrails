@@ -12,11 +12,12 @@ import {
   GUARDRAILS_PROMPT_OPENED_EVENT,
   setupLegacyPromptEventAlias,
 } from "../../src/shared/events";
-import { isCommandAllowed, saveCommandSessionGrant } from "./grants";
 import { getPermissionGateToolInput } from "./command-input";
 import { checkCommandSafety } from "./command-safety";
+import { isCommandAllowed, saveCommandSessionGrant } from "./grants";
 import { createPermissionGateConfirmComponent } from "./prompt";
 import { formatAutoDenyReason, matchCommandPattern } from "./rules";
+import { checkToolNameSafety } from "./tool-name-safety";
 
 export default async function permissionGate(pi: ExtensionAPI) {
   await configLoader.load();
@@ -26,12 +27,122 @@ export default async function permissionGate(pi: ExtensionAPI) {
       GUARDRAILS_FEATURE_REGISTER_EVENT,
       createFeatureRegisterPayload("permissionGate"),
     );
+    pi.events.emit(
+      GUARDRAILS_FEATURE_REGISTER_EVENT,
+      createFeatureRegisterPayload("toolsGate"),
+    );
   });
   setupLegacyPromptEventAlias(pi, "permissionGate");
+  setupLegacyPromptEventAlias(pi, "toolsGate");
 
   pi.on("tool_call", async (event, ctx) => {
     const config = configLoader.getConfig();
-    if (!config.enabled || !config.features.permissionGate) return;
+    if (!config.enabled) return;
+
+    if (config.features.toolsGate) {
+      const toolName = event.toolName;
+      const decision = checkToolNameSafety(toolName, config.toolsGate);
+      if (decision.kind === "auto-deny") {
+        const description = decision.pattern.description?.trim();
+        const reason = description
+          ? `Tool name auto-denied: ${description}`
+          : "Tool name matched an auto-deny pattern.";
+        const action = {
+          kind: "command" as const,
+          command: toolName,
+          origin: toolName,
+        };
+        emitActionBlocked(pi, {
+          feature: "toolsGate",
+          action,
+          reason,
+          block: { source: "permission", metadata: decision.pattern },
+          context: { toolName, input: event.input },
+        });
+        return { block: true, reason };
+      }
+
+      if (decision.kind === "confirm") {
+        const description = decision.pattern.description?.trim();
+        const reason =
+          description || `matched pattern "${decision.pattern.pattern}"`;
+        const action = {
+          kind: "command" as const,
+          command: toolName,
+          origin: toolName,
+        };
+        emitRiskDetected(pi, {
+          feature: "toolsGate",
+          risk: {
+            kind: "dangerous",
+            action,
+            key: "tools-gate.tool-name",
+            reason: `Tool name ${reason}`,
+            metadata: { toolName, ...decision.pattern },
+          },
+          context: { toolName, input: event.input },
+        });
+
+        if (!config.toolsGate.requireConfirmation) {
+          ctx.ui.notify(`Tool call matched rule: ${reason}`, "warning");
+        } else {
+          if (!ctx.hasUI) {
+            const blockReason = `Tool call blocked (no UI to confirm): ${reason}`;
+            emitActionBlocked(pi, {
+              feature: "toolsGate",
+              action,
+              reason: blockReason,
+              block: { source: "nonInteractive", metadata: decision.pattern },
+              context: { toolName, input: event.input },
+            });
+            return { block: true, reason: blockReason };
+          }
+
+          const promptOpened = createPromptOpenedPayload({
+            feature: "toolsGate",
+            action,
+            reason: `Tool name ${reason}`,
+            prompt: { kind: "permission", metadata: decision.pattern },
+            context: { toolName, input: event.input },
+          });
+          pi.events.emit(GUARDRAILS_PROMPT_OPENED_EVENT, promptOpened);
+          let selection: string | undefined;
+          try {
+            selection = await ctx.ui.select(
+              `Tool call: ${toolName}\nMatched rule: ${reason}\n\nAllow this tool call?`,
+              ["Allow once", "Deny", "Decline and stop"],
+            );
+          } finally {
+            pi.events.emit(
+              GUARDRAILS_PROMPT_CLOSED_EVENT,
+              createPromptClosedPayload(promptOpened),
+            );
+          }
+
+          if (selection !== "Allow once") {
+            const stopped = selection === "Decline and stop";
+            const blockReason = stopped
+              ? "User declined and stopped tool call"
+              : "User denied tool call";
+            emitActionBlocked(pi, {
+              feature: "toolsGate",
+              action,
+              reason: blockReason,
+              block: {
+                source: stopped ? "user-stop" : "user",
+                metadata: decision.pattern,
+              },
+              context: { toolName, input: event.input },
+            });
+            if (stopped) ctx.abort();
+            return { block: true, reason: blockReason };
+          }
+          // Accepted Bash and PowerShell calls still undergo command checks.
+        }
+      }
+    }
+
+    if (!config.features.permissionGate) return;
     const toolInput = getPermissionGateToolInput(event);
     if (!toolInput) return;
     if (toolInput.kind === "invalid") {

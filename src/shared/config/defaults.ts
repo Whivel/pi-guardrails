@@ -8,6 +8,7 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
   features: {
     policies: true,
     permissionGate: true,
+    toolsGate: true,
     pathAccess: false,
   },
   pathAccess: {
@@ -88,6 +89,13 @@ export const DEFAULT_CONFIG: ResolvedConfig = {
           "Accessing {file} is not allowed. This file is part of your GPG configuration and may contain private keys or trust settings.",
       },
     ],
+  },
+  toolsGate: {
+    patterns: [],
+    caseInsensitive: false,
+    requireConfirmation: true,
+    allowedPatterns: [],
+    autoDenyPatterns: [],
   },
   permissionGate: {
     patterns: [

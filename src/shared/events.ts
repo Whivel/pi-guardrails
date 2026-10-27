@@ -11,7 +11,11 @@ export const GUARDRAILS_PROMPT_CLOSED_EVENT = "guardrails:prompt:closed";
 /** @deprecated Use GUARDRAILS_PROMPT_OPENED_EVENT. */
 export const GUARDRAILS_ACTION_PROMPTED_EVENT = "guardrails:action:prompted";
 
-export type GuardrailsFeatureId = "policies" | "permissionGate" | "pathAccess";
+export type GuardrailsFeatureId =
+  | "policies"
+  | "permissionGate"
+  | "toolsGate"
+  | "pathAccess";
 
 export interface GuardrailsEventBase {
   source: "guardrails";
